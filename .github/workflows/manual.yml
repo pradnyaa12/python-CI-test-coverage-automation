@@ -9,6 +9,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    outputs:
+      coverage: ${{ steps.coverage-check.outputs.coverage }}  # Pass coverage output to other jobs
+
     steps:
       # Checkout the code
       - name: Checkout Code
@@ -67,7 +70,7 @@ jobs:
   merge:
     needs: test  # This job only runs if 'test' job passes
     runs-on: ubuntu-latest
-    if: ${{ steps.coverage-check.outputs.coverage >= '70' }}
+    if: ${{ needs.test.outputs.coverage >= '70' }}  # Reference coverage output from the 'test' job
 
     steps:
       # Checkout the code
