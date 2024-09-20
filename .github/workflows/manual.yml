@@ -3,7 +3,7 @@ name: CI Test and Coverage
 on:
   push:
     branches:
-      - test_branch  # Triggers the workflow on code push to test_branch
+      - test_branch  # Trigger the workflow on pushes to the test_branch
 
 jobs:
   test:
@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4  # Use the latest checkout action
+        uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -26,55 +26,39 @@ jobs:
 
       - name: Run Tests and Generate Coverage
         run: |
-          pytest --cov=./ --cov-report=html --cov-report=term --html=pytest_report.html
-
-      - name: Upload Coverage and Pytest Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: htmlcov/  # Path to HTML coverage report
-
-      - name: Upload Pytest HTML Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: pytest-report
-          path: pytest_report.html  # Path to pytest HTML report
+          pytest --cov=./ --cov-report=html --cov-report=term
+          pytest --html=pytest_report.html
 
       - name: Check Coverage
         id: coverage-check
         run: |
           coverage=$(pytest --cov=./ --cov-report=term | grep "TOTAL" | awk '{print $4}' | sed 's/%//')
           echo "Coverage is: $coverage"
-          echo "coverage=$coverage" >> $GITHUB_ENV  # Save coverage to the environment file
+          echo "coverage=$coverage" >> $GITHUB_ENV
 
       - name: Fail if coverage below 70%
         run: |
-          coverage=$(pytest --cov=./ --cov-report=term | grep "TOTAL" | awk '{print $4}' | sed 's/%//')
+          coverage=$(echo ${{ env.coverage }})
           if (( $(echo "$coverage < 70" | bc -l) )); then
             echo "Coverage is less than 70%! Failing the job."
             exit 1
           else
             echo "Coverage is above 70%."
+          fi
 
   merge:
-    needs: test  # Depends on the 'test' job passing
+    needs: test  # This job depends on the 'test' job passing
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/test_branch' && env.coverage >= '70' }}
+    if: ${{ github.ref == 'refs/heads/test_branch' && steps.coverage-check.outputs.coverage != '' && env.coverage >= '70' }}
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Fetch all branches
+        uses: actions/checkout@v3
 
-      - name: Set Git Config
+      - name: Merge to main branch
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-
-      - name: Fetch and Merge Branches
-        run: |
-          git fetch --all  # Fetch all branches from the remote
-          git checkout main  # Checkout the main branch
-          git merge test_branch  # Merge the test_branch into main
-          git push origin main  # Push the merged changes back to the remote
+          git checkout main
+          git merge test_branch
+          git push origin main
