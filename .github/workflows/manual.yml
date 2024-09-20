@@ -46,7 +46,7 @@ jobs:
         with:
           name: pytest-coverage-reports
           path: |
-            htmlcov/    # HTML Coverage report
+            htmlcov/index.html   # HTML Coverage report
             pytest_report.html  # Pytest HTML report
 
       # Check coverage
