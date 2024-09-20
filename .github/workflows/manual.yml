@@ -25,20 +25,16 @@ jobs:
           pip install pytest pytest-cov pytest-html
 
       - name: Run Tests and Generate Coverage
+        id: run-tests
         run: |
           pytest --cov=./ --cov-report=html --cov-report=term
           pytest --html=pytest_report.html
-
-      - name: Check Coverage
-        id: coverage-check
-        run: |
           coverage=$(pytest --cov=./ --cov-report=term | grep "TOTAL" | awk '{print $4}' | sed 's/%//')
-          echo "Coverage is: $coverage"
-          echo "coverage=$coverage" >> $GITHUB_ENV
+          echo "coverage=${coverage}" >> $GITHUB_ENV  # Save coverage to environment variable
 
       - name: Fail if coverage below 70%
         run: |
-          if (( $(echo "${{ env.coverage }} < 70" | bc -l) )); then
+          if [ "${{ env.coverage }}" -lt 70 ]; then
             echo "Coverage is less than 70%! Failing the job."
             exit 1
           else
