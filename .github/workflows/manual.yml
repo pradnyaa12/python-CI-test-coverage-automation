@@ -3,7 +3,7 @@ name: CI Test and Coverage
 on:
   push:
     branches:
-      - test_branch  # Trigger the workflow on pushes to the test_branch
+      - test_branch  # Trigger on pushes to test_branch
 
 jobs:
   test:
@@ -25,16 +25,17 @@ jobs:
           pip install pytest pytest-cov pytest-html
 
       - name: Run Tests and Generate Coverage
-        id: run-tests
         run: |
           pytest --cov=./ --cov-report=html --cov-report=term
           pytest --html=pytest_report.html
+          # Extract coverage percentage
           coverage=$(pytest --cov=./ --cov-report=term | grep "TOTAL" | awk '{print $4}' | sed 's/%//')
-          echo "coverage=${coverage}" >> $GITHUB_ENV  # Save coverage to environment variable
+          echo "$coverage" > coverage.txt  # Store coverage in a file
 
-      - name: Fail if coverage below 70%
+      - name: Check Coverage
         run: |
-          if [ "${{ env.coverage }}" -lt 70 ]; then
+          coverage=$(cat coverage.txt)
+          if [ "$coverage" -lt 70 ]; then
             echo "Coverage is less than 70%! Failing the job."
             exit 1
           else
@@ -42,13 +43,22 @@ jobs:
           fi
 
   merge:
-    needs: test  # This job depends on the 'test' job passing
+    needs: test
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/test_branch' && env.coverage != '' && env.coverage >= '70' }}
+    if: ${{ github.ref == 'refs/heads/test_branch' && github.event_name == 'push' }}
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
+
+      - name: Retrieve Coverage
+        run: |
+          coverage=$(cat coverage.txt)
+          echo "Coverage retrieved: $coverage"
+          if [ "$coverage" -lt 70 ]; then
+            echo "Cannot merge due to insufficient coverage."
+            exit 1
+          fi
 
       - name: Merge to main branch
         run: |
