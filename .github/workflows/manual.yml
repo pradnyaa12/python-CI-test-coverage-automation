@@ -34,11 +34,11 @@ jobs:
         run: |
           coverage=$(pytest --cov=./ --cov-report=term | grep "TOTAL" | awk '{print $4}' | sed 's/%//')
           echo "Coverage is: $coverage"
-          echo "coverage=$coverage" >> $GITHUB_ENV
+          echo "::set-output name=coverage::$coverage"
 
       - name: Fail if coverage below 70%
         run: |
-          coverage=$(echo ${{ env.coverage }})
+          coverage=${{ steps.coverage-check.outputs.coverage }}
           if (( $(echo "$coverage < 70" | bc -l) )); then
             echo "Coverage is less than 70%! Failing the job."
             exit 1
@@ -49,7 +49,7 @@ jobs:
   merge:
     needs: test  # This job depends on the 'test' job passing
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/test_branch' && env.coverage != '' && env.coverage >= '70' }}
+    if: ${{ github.ref == 'refs/heads/test_branch' && steps.coverage-check.outputs.coverage != '' && steps.coverage-check.outputs.coverage >= '70' }}
 
     steps:
       - name: Checkout Code
