@@ -3,7 +3,7 @@ name: CI Test and Coverage
 on:
   push:
     branches:
-      - test_branch  # Automatically triggers the workflow on code push to test_branch
+      - test_branch  # Triggers the workflow on code push to test_branch
 
 jobs:
   test:
@@ -11,10 +11,10 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4  # Updated to v4 for Node 20 support
+        uses: actions/checkout@v4  # Use the latest checkout action
 
       - name: Set up Python
-        uses: actions/setup-python@v4  # This is already on v4
+        uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
@@ -26,49 +26,55 @@ jobs:
 
       - name: Run Tests and Generate Coverage
         run: |
-          pytest --cov=./ --cov-report=html --html=pytest_report.html
+          pytest --cov=./ --cov-report=html --cov-report=term --html=pytest_report.html
+
+      - name: Upload Coverage and Pytest Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: htmlcov/  # Path to HTML coverage report
+      - name: Upload Pytest HTML Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-report
+          path: pytest_report.html  # Path to pytest HTML report
 
       - name: Check Coverage
         id: coverage-check
         run: |
           coverage=$(pytest --cov=./ --cov-report=term | grep "TOTAL" | awk '{print $4}' | sed 's/%//')
           echo "Coverage is: $coverage"
-          echo "COVERAGE=$coverage" >> $GITHUB_ENV  # Use environment files for setting output
+          echo "::set-output name=coverage::$coverage"
+          echo "##[set-output]coverage=$coverage"  # To ensure coverage output is available for later steps
 
       - name: Fail if coverage below 70%
         run: |
-          if (( $(echo "$COVERAGE < 70" | bc -l) )); then
+          coverage=$(pytest --cov=./ --cov-report=term | grep "TOTAL" | awk '{print $4}' | sed 's/%//')
+          if (( $(echo "$coverage < 70" | bc -l) )); then
             echo "Coverage is less than 70%! Failing the job."
             exit 1
           else
             echo "Coverage is above 70%."
-          fi
-
-      - name: Upload Coverage and Test Report Artifacts
-        uses: actions/upload-artifact@v4  # Updated to v4 for artifact uploading
-        with:
-          name: coverage-report
-          path: htmlcov/index.html  # Ensure the coverage report path is correct
-
-      - name: Upload Pytest HTML Report
-        uses: actions/upload-artifact@v4  # Updated to v4 for artifact uploading
-        with:
-          name: pytest-report
-          path: pytest_report.html  # Ensure the pytest HTML report path is correct
 
   merge:
-    needs: test  # This job depends on the 'test' job passing
+    needs: test  # Depends on the 'test' job passing
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/test_branch' && success() }}
+    if: ${{ github.ref == 'refs/heads/test_branch' && steps.coverage-check.outputs.coverage >= '70' }}
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4  # Updated to v4 for Node 20 support
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all branches
 
-      - name: Merge to main branch
+      - name: Set Git Config
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git checkout main
-          git merge test_branch
-          git push origin main
+
+      - name: Fetch and Merge Branches
+        run: |
+          git fetch --all  # Fetch all branches from the remote
+          git checkout main  # Checkout the main branch
+          git merge test_branch  # Merge the test_branch into main
+          git push origin main  # Push the merged changes back to the remote
