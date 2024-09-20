@@ -3,61 +3,82 @@ name: CI Test and Coverage
 on:
   push:
     branches:
-      - main  # Automatically triggers the workflow on code push to the main branch
+      - test_branch  # Triggers workflow when code is pushed to test_branch
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
     steps:
+      # Checkout the code
       - name: Checkout Code
         uses: actions/checkout@v3
 
+      # Set up Python (Python 3.9)
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
+          python-version: '3.9'
 
+      # Install dependencies
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-cov
+          pip install pytest pytest-cov pytest-html
 
+      # Run tests and create coverage report
       - name: Run Tests and Generate Coverage
         run: |
-          pytest --cov=./ --cov-report=html --cov-report=term
+          # Run pytest and generate test report
+          pytest --html=pytest_report.html
+          # Generate coverage report
+          coverage run -m pytest
+          coverage report
+          coverage html
 
+      # Save coverage and test report artifacts
+      - name: Upload coverage and test reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: pytest-coverage-reports
+          path: |
+            htmlcov/    # HTML Coverage report
+            pytest_report.html  # Pytest HTML report
+
+      # Check coverage
       - name: Check Coverage
         id: coverage-check
         run: |
-          coverage=$(pytest --cov=./ --cov-report=term | grep "TOTAL" | awk '{print $4}')
+          coverage=$(coverage report | grep "TOTAL" | awk '{print $4}' | sed 's/%//')
           echo "Coverage is: $coverage"
           echo "::set-output name=coverage::$coverage"
 
-      - name: Fail if coverage below 70%
+      # Fail if coverage is below 70%
+      - name: Fail if coverage is below 70%
         run: |
-          coverage=$(pytest --cov=./ --cov-report=term | grep "TOTAL" | awk '{print $4}' | sed 's/%//')
+          coverage=$(coverage report | grep "TOTAL" | awk '{print $4}' | sed 's/%//')
           if (( $(echo "$coverage < 70" | bc -l) )); then
             echo "Coverage is less than 70%! Failing the job."
             exit 1
           else
             echo "Coverage is above 70%."
-          fi
 
   merge:
-    needs: test  # This job depends on the 'test' job passing
+    needs: test  # This job only runs if 'test' job passes
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/main' && success() }}
+    if: ${{ steps.coverage-check.outputs.coverage >= '70' }}
 
     steps:
+      # Checkout the code
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Merge to test branch
+      # Merge to main branch
+      - name: Merge test_branch to main
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git checkout test
-          git merge main
-          git push origin test
+          git checkout main
+          git merge test_branch
+          git push origin main
