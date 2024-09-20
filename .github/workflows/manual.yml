@@ -26,16 +26,16 @@ jobs:
 
       - name: Run Tests and Generate Coverage
         run: |
-          pytest --cov=./ --cov-report=html --cov-report=term
-          pytest --html=pytest_report.html
-          # Extract coverage percentage
-          coverage=$(pytest --cov=./ --cov-report=term | grep "TOTAL" | awk '{print $4}' | sed 's/%//')
-          echo "$coverage" > coverage.txt  # Store coverage in a file
+          coverage run -m pytest  # Run tests and collect coverage
+          coverage report          # Output coverage in the terminal
+          coverage html            # Generate HTML report
+          coverage_percentage=$(coverage report | tail -n 1 | awk '{print $4}' | sed 's/%//')  # Get the coverage percentage
+          echo "$coverage_percentage" > coverage.txt  # Store coverage in a file
 
       - name: Check Coverage
         run: |
-          coverage=$(cat coverage.txt)
-          if [ "$coverage" -lt 70 ]; then
+          coverage_percentage=$(cat coverage.txt)
+          if [ "$coverage_percentage" -lt 70 ]; then
             echo "Coverage is less than 70%! Failing the job."
             exit 1
           else
@@ -53,9 +53,9 @@ jobs:
 
       - name: Retrieve Coverage
         run: |
-          coverage=$(cat coverage.txt)
-          echo "Coverage retrieved: $coverage"
-          if [ "$coverage" -lt 70 ]; then
+          coverage_percentage=$(cat coverage.txt)
+          echo "Coverage retrieved: $coverage_percentage"
+          if [ "$coverage_percentage" -lt 70 ]; then
             echo "Cannot merge due to insufficient coverage."
             exit 1
           fi
