@@ -11,10 +11,10 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4  # Updated to v4 for Node 20 support
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v4  # This is already on v4
         with:
           python-version: '3.9'
 
@@ -33,7 +33,7 @@ jobs:
         run: |
           coverage=$(pytest --cov=./ --cov-report=term | grep "TOTAL" | awk '{print $4}' | sed 's/%//')
           echo "Coverage is: $coverage"
-          echo "COVERAGE=$coverage" >> $GITHUB_ENV
+          echo "COVERAGE=$coverage" >> $GITHUB_ENV  # Use environment files for setting output
 
       - name: Fail if coverage below 70%
         run: |
@@ -45,13 +45,13 @@ jobs:
           fi
 
       - name: Upload Coverage and Test Report Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4  # Updated to v4 for artifact uploading
         with:
           name: coverage-report
           path: htmlcov/index.html  # Ensure the coverage report path is correct
 
       - name: Upload Pytest HTML Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4  # Updated to v4 for artifact uploading
         with:
           name: pytest-report
           path: pytest_report.html  # Ensure the pytest HTML report path is correct
@@ -63,7 +63,7 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4  # Updated to v4 for Node 20 support
 
       - name: Merge to main branch
         run: |
