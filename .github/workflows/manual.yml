@@ -33,6 +33,7 @@ jobs:
         with:
           name: coverage-report
           path: htmlcov/  # Path to HTML coverage report
+
       - name: Upload Pytest HTML Report
         uses: actions/upload-artifact@v4
         with:
@@ -44,8 +45,7 @@ jobs:
         run: |
           coverage=$(pytest --cov=./ --cov-report=term | grep "TOTAL" | awk '{print $4}' | sed 's/%//')
           echo "Coverage is: $coverage"
-          echo "::set-output name=coverage::$coverage"
-          echo "##[set-output]coverage=$coverage"  # To ensure coverage output is available for later steps
+          echo "coverage=$coverage" >> $GITHUB_ENV  # Save coverage to the environment file
 
       - name: Fail if coverage below 70%
         run: |
@@ -59,7 +59,7 @@ jobs:
   merge:
     needs: test  # Depends on the 'test' job passing
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/test_branch' && steps.coverage-check.outputs.coverage >= '70' }}
+    if: ${{ github.ref == 'refs/heads/test_branch' && env.coverage >= '70' }}
 
     steps:
       - name: Checkout Code
