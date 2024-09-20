@@ -3,82 +3,69 @@ name: CI Test and Coverage
 on:
   push:
     branches:
-      - test_branch  # Triggers workflow when code is pushed to test_branch
+      - test_branch  # Automatically triggers the workflow on code push to test_branch
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
-    outputs:
-      coverage: ${{ steps.coverage-check.outputs.coverage }}  # Pass coverage output to other jobs
-
     steps:
-      # Checkout the code
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # Set up Python (Python 3.9)
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
-      # Install dependencies
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest pytest-cov pytest-html
 
-      # Run tests and create coverage report
       - name: Run Tests and Generate Coverage
         run: |
-          # Run pytest and generate test report
-          pytest --html=pytest_report.html
-          # Generate coverage report
-          coverage run -m pytest
-          coverage report
-          coverage html
+          pytest --cov=./ --cov-report=html --html=pytest_report.html
 
-      # Save coverage and test report artifacts
-      - name: Upload coverage and test reports
-        uses: actions/upload-artifact@v3
-        with:
-          name: pytest-coverage-reports
-          path: |
-            htmlcov/index.html   # HTML Coverage report
-            pytest_report.html  # Pytest HTML report
-
-      # Check coverage
       - name: Check Coverage
         id: coverage-check
         run: |
-          coverage=$(coverage report | grep "TOTAL" | awk '{print $4}' | sed 's/%//')
+          coverage=$(pytest --cov=./ --cov-report=term | grep "TOTAL" | awk '{print $4}' | sed 's/%//')
           echo "Coverage is: $coverage"
-          echo "::set-output name=coverage::$coverage"
+          echo "COVERAGE=$coverage" >> $GITHUB_ENV
 
-      # Fail if coverage is below 70%
-      - name: Fail if coverage is below 70%
+      - name: Fail if coverage below 70%
         run: |
-          coverage=$(coverage report | grep "TOTAL" | awk '{print $4}' | sed 's/%//')
-          if (( $(echo "$coverage < 70" | bc -l) )); then
+          if (( $(echo "$COVERAGE < 70" | bc -l) )); then
             echo "Coverage is less than 70%! Failing the job."
             exit 1
           else
             echo "Coverage is above 70%."
+          fi
+
+      - name: Upload Coverage and Test Report Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: htmlcov/index.html  # Ensure the coverage report path is correct
+
+      - name: Upload Pytest HTML Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: pytest-report
+          path: pytest_report.html  # Ensure the pytest HTML report path is correct
 
   merge:
-    needs: test  # This job only runs if 'test' job passes
+    needs: test  # This job depends on the 'test' job passing
     runs-on: ubuntu-latest
-    if: ${{ needs.test.outputs.coverage >= '70' }}  # Reference coverage output from the 'test' job
+    if: ${{ github.ref == 'refs/heads/test_branch' && success() }}
 
     steps:
-      # Checkout the code
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # Merge to main branch
-      - name: Merge test_branch to main
+      - name: Merge to main branch
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
