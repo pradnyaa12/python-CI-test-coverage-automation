@@ -53,10 +53,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Merge to main branch
+      - name:  Merge test_branch into main
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git checkout main
+          git pull origin
           git merge test_branch
           git push origin main
