@@ -29,36 +29,36 @@ jobs:
           coverage run -m pytest  # Run tests and collect coverage
           coverage report          # Output coverage in the terminal
           coverage html            # Generate HTML report
-          coverage_percentage=$(coverage report | tail -n 1 | awk '{print $4}' | sed 's/%//')  # Get the coverage percentage
-          echo "$coverage_percentage" > coverage.txt  # Store coverage in a file
 
       - name: Check Coverage
+        id: coverage-check
         run: |
-          coverage_percentage=$(cat coverage.txt)
-          if [ "$coverage_percentage" -lt 70 ]; then
+          coverage_percentage=$(coverage report | tail -n 1 | awk '{print $4}' | sed 's/%//')
+          echo "Coverage percentage: $coverage_percentage"
+          if (( $(echo "$coverage_percentage < 70" | bc -l) )); then
             echo "Coverage is less than 70%! Failing the job."
             exit 1
           else
             echo "Coverage is above 70%."
           fi
+        # Save coverage percentage in GitHub Actions outputs
+        shell: bash
+        echo "coverage=$coverage_percentage" >> $GITHUB_ENV
+
+      - name: Upload HTML Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: htmlcov/index.html  # Path to the coverage HTML report
 
   merge:
     needs: test
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/test_branch' && github.event_name == 'push' }}
+    if: ${{ github.ref == 'refs/heads/test_branch' && github.event_name == 'push' && env.coverage >= 70 }}
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
-
-      - name: Retrieve Coverage
-        run: |
-          coverage_percentage=$(cat coverage.txt)
-          echo "Coverage retrieved: $coverage_percentage"
-          if [ "$coverage_percentage" -lt 70 ]; then
-            echo "Cannot merge due to insufficient coverage."
-            exit 1
-          fi
 
       - name: Merge to main branch
         run: |

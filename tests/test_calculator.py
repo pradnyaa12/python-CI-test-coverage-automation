@@ -76,3 +76,9 @@ def check_result_8(calculator):
 
 
 
+
+# python -m pytest
+# coverage run -m pytest
+# coverage report   
+# coverage html 
+#pytest --html=test_report.html 
