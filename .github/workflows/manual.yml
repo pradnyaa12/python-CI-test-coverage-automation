@@ -35,16 +35,8 @@ jobs:
         run: |
           coverage_percentage=$(coverage report | tail -n 1 | awk '{print $4}' | sed 's/%//')
           echo "Coverage percentage: $coverage_percentage"
-          if (( $(echo "$coverage_percentage < 70" | bc -l) )); then
-            echo "Coverage is less than 70%! Failing the job."
-            exit 1
-          else
-            echo "Coverage is above 70%."
-          fi
-        # Save coverage percentage in GitHub Actions outputs
+          echo "::set-output name=coverage_percentage::$coverage_percentage"
         shell: bash
-        env:
-          coverage_percentage: ${{ steps.coverage-check.outputs.coverage_percentage }}
 
       - name: Upload HTML Coverage Report
         uses: actions/upload-artifact@v4
@@ -55,7 +47,7 @@ jobs:
   merge:
     needs: test
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/test_branch' && github.event_name == 'push' && env.coverage_percentage >= 70 }}
+    if: ${{ github.ref == 'refs/heads/test_branch' && github.event_name == 'push' && needs.test.outputs.coverage_percentage != '' && needs.test.outputs.coverage_percentage > 70 }}
 
     steps:
       - name: Checkout Code
