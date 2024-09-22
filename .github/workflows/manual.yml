@@ -44,20 +44,24 @@ jobs:
           name: coverage-report
           path: htmlcov/index.html  # Path to the coverage HTML report
 
-  merge:
-    needs: test
-    runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/test_branch' && github.event_name == 'push' && needs.test.outputs.coverage_percentage != '' && needs.test.outputs.coverage_percentage > 70 }}
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
-
-      - name:  Merge test_branch into main
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git checkout main
-          git pull origin
-          git merge test_branch
-          git push origin main
+      - name: Comment on the pull request
+        if: ${{ github.event_name == 'push' && steps.coverage-check.outputs.coverage_percentage != '' }}
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const coverage = ${{ steps.coverage-check.outputs.coverage_percentage }};
+            if (coverage >= 70) {
+              github.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `All test cases passed and coverage is ${coverage}%.`
+              });
+            } else {
+              github.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `Test cases failed or coverage is below 70%. Coverage: ${coverage}%.`
+              });
+            }
