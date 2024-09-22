@@ -43,7 +43,8 @@ jobs:
           fi
         # Save coverage percentage in GitHub Actions outputs
         shell: bash
-        echo "coverage=$coverage_percentage" >> $GITHUB_ENV
+        env:
+          coverage_percentage: ${{ steps.coverage-check.outputs.coverage_percentage }}
 
       - name: Upload HTML Coverage Report
         uses: actions/upload-artifact@v4
@@ -54,7 +55,7 @@ jobs:
   merge:
     needs: test
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/test_branch' && github.event_name == 'push' && env.coverage >= 70 }}
+    if: ${{ github.ref == 'refs/heads/test_branch' && github.event_name == 'push' && env.coverage_percentage >= 70 }}
 
     steps:
       - name: Checkout Code
