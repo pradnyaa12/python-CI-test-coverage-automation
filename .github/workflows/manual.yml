@@ -44,22 +44,20 @@ jobs:
           name: coverage-report
           path: htmlcov/index.html  # Path to the coverage HTML report
 
-      - name: Comment on the push
+      - name: Comment on the commit
         if: ${{ github.event_name == 'push' && steps.coverage-check.outputs.coverage_percentage != '' }}
         uses: actions/github-script@v6
         with:
           script: |
             const coverage = ${{ steps.coverage-check.outputs.coverage_percentage }};
-            const issue_number = github.context.payload.pull_request
-              ? github.context.payload.pull_request.number
-              : github.context.payload.issue.number;
+            const commit_sha = github.context.sha;
             const commentBody = coverage >= 70
               ? `All test cases passed and coverage is ${coverage}%.`
               : `Test cases failed or coverage is below 70%. Coverage: ${coverage}%.`;
 
-            await github.rest.issues.createComment({
+            await github.rest.repos.createCommitComment({
               owner: github.context.repo.owner,
               repo: github.context.repo.repo,
-              issue_number: issue_number,
+              commit_sha: commit_sha,
               body: commentBody
             });
